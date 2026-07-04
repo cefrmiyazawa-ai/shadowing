@@ -1,0 +1,376 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>日本語シャドーイング（一元管理Web版）</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <style>
+        .slide-card { min-height: 320px; display: flex; flex-direction: column; justify-content: center; align-items: center; width: 100%; }
+        ruby { ruby-align: center; }
+        rt { font-size: 0.65em; color: #e5e7eb; font-weight: normal; }
+        .answer-text-area { line-height: 2.2; }
+        .fade-in { animation: fadeIn 0.4s ease-in-out forwards; }
+        @keyframes fadeIn { from { opacity: 0; transform: translateY(8px); } to { opacity: 1; transform: translateY(0); } }
+    </style>
+</head>
+<body class="bg-gray-900 text-gray-100 h-screen flex flex-col justify-between p-3 sm:p-4 select-none overflow-hidden">
+
+    <div class="max-w-4xl w-full mx-auto flex-1 flex flex-col justify-center my-2">
+        <div id="loading" class="text-center py-20 bg-gray-800 rounded-2xl border border-gray-700 shadow-lg">
+            <div class="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-500 mx-auto mb-4"></div>
+            <p class="text-gray-400 font-medium">GAS経由でスプレッドシートから問題を読み込んでいます...</p>
+        </div>
+
+        <div id="slide-container" onclick="advanceAnimation(event)" class="hidden bg-gray-800 rounded-2xl p-5 sm:p-8 shadow-2xl border border-gray-700 relative cursor-pointer hover:border-gray-600 transition-all duration-300">
+            <div id="slide-number" class="absolute top-4 left-6 text-gray-500 font-bold text-sm tracking-widest"></div>
+            <div class="absolute top-4 right-6 text-gray-500 text-xs font-medium hidden sm:block">💡 画面クリックで進行します</div>
+            
+            <div class="slide-card">
+                <div id="question-area" class="w-full flex flex-col items-center mb-4"></div>
+                
+                <div id="record-area" class="w-full flex flex-col items-center my-3 gap-3" onclick="event.stopPropagation()">
+                    <div class="flex gap-3">
+                        <button id="record-btn" onclick="startRecording(event)" class="px-6 py-3 bg-red-600 hover:bg-red-500 text-white font-bold rounded-xl transition-all transform active:scale-95 text-sm sm:text-base shadow-md flex items-center gap-2">🔴 録音スタート</button>
+                        <button id="stop-btn" onclick="stopRecording(event)" class="px-6 py-3 bg-gray-600 hover:bg-gray-500 text-white font-bold rounded-xl transition-all transform active:scale-95 text-sm sm:text-base shadow-md hidden flex items-center gap-2">⏹ 録音ストップ</button>
+                    </div>
+                    
+                    <div id="user-audio-container" class="w-full max-w-xs hidden bg-gray-700/50 p-3 rounded-xl border border-gray-600 text-center fade-in">
+                        <span class="text-xs text-red-400 font-bold block mb-1">あなたの音声（一時保存）</span>
+                        <audio id="user-audio" controls class="w-full h-8 mx-auto" onclick="event.stopPropagation()"></audio>
+                    </div>
+                </div>
+
+                <div id="audio-area" class="w-full flex justify-center hidden my-2">
+                    <button id="audio-btn" class="flex-shrink-0 w-16 h-16 flex items-center justify-center bg-blue-600 hover:bg-blue-500 text-white rounded-full transition-all transform hover:scale-105 active:scale-95 shadow-md text-2xl">🔊</button>
+                </div>
+
+                <div id="answer-area" class="w-full hidden mt-2 text-xl sm:text-2xl font-bold text-green-400 whitespace-pre-wrap text-center answer-text-area"></div>
+            </div>
+        </div>
+    </div>
+
+    <div id="controls" class="hidden max-w-4xl w-full mx-auto flex flex-col gap-3 border-t border-gray-700 pt-3 pb-1">
+        
+        <div class="flex justify-center">
+            <div class="flex items-center gap-4 bg-gray-800 px-4 py-1.5 rounded-lg border border-gray-700 shadow-inner">
+                <label class="flex items-center cursor-pointer">
+                    <input type="radio" name="voice-type" value="female" class="w-4 h-4 text-blue-500" checked onchange="changeVoice()">
+                    <span class="ml-1.5 text-sm text-gray-300">女性の声</span>
+                </label>
+                <label class="flex items-center cursor-pointer">
+                    <input type="radio" name="voice-type" value="male" class="w-4 h-4 text-blue-500" onchange="changeVoice()">
+                    <span class="ml-1.5 text-sm text-gray-300">男性の声</span>
+                </label>
+            </div>
+        </div>
+
+        <div class="flex justify-between items-center w-full gap-2">
+            <button id="prev-btn" onclick="prevSlide()" class="bg-gray-800 hover:bg-gray-700 text-gray-300 px-4 sm:px-6 py-2.5 rounded-xl font-bold transition-colors disabled:opacity-30 disabled:cursor-not-allowed text-sm sm:text-base whitespace-nowrap">◀ 前の問題</button>
+            <button id="next-animation-btn" onclick="advanceAnimation(event)" class="bg-green-600 hover:bg-green-500 text-white px-4 sm:px-6 py-2.5 rounded-xl font-bold transition-colors shadow text-sm sm:text-base flex-1 max-w-xs">🔒 録音すると次へ進めます</button>
+            <button id="next-btn" onclick="nextSlide()" class="bg-blue-600 hover:bg-blue-500 text-white px-4 sm:px-6 py-2.5 rounded-xl font-bold transition-colors disabled:opacity-30 disabled:cursor-not-allowed text-sm sm:text-base whitespace-nowrap">次の問題 ▶</button>
+        </div>
+    </div>
+
+    <script>
+        // ==========================================
+        // 重要: コピーしたGASのウェブアプリURLをここに貼り付けます
+        // ==========================================
+        const GAS_WEB_APP_URL = "https://script.google.com/macros/s/AKfycbzOiDPnAXUQuBY531eST6G4gTOWtRjWtdsSX7Rg4806TxbD66qStJ-ZfBKkWtwE9iPXxw/exec";
+
+        let slides = [];
+        let currentIndex = 0;      
+        let animationState = 0; 
+        
+        let currentAudio = null;
+        let selectedVoiceType = 'female';
+        let isAudioLoading = false;
+        let isAudioPlayed = false; 
+
+        let mediaRecorder = null;
+        let audioChunks = [];
+        let userAudioUrl = null;
+        let isRecorded = false;
+
+        function fetchQuestions() {
+            if(GAS_WEB_APP_URL.includes("ここにGASの")){
+                alert("URLが設定されていません。コード内のGAS_WEB_APP_URLを設定してください。");
+                return;
+            }
+            
+            fetch(`${GAS_WEB_APP_URL}?action=getData`)
+                .then(res => res.json())
+                .then(resData => {
+                    if (resData.success) {
+                        initSlides(resData.data);
+                    } else {
+                        throw new Error(resData.error);
+                    }
+                })
+                .catch(err => {
+                    document.getElementById('loading').innerHTML = `<p class='text-red-400 p-4'>データの取得に失敗しました: ${err.message}<br>GASのアクセス権限が「全員」になっているか再度ご確認ください。</p>`;
+                });
+        }
+
+        document.addEventListener('DOMContentLoaded', fetchQuestions);
+
+        function initSlides(data) {
+            slides = data;
+            if (slides.length === 0) {
+                document.getElementById('loading').innerHTML = "<p class='text-red-400'>問題データがありません。</p>";
+                return;
+            }
+            document.getElementById('loading').classList.add('hidden');
+            document.getElementById('slide-container').classList.remove('hidden');
+            document.getElementById('controls').classList.remove('hidden');
+            
+            initMediaRecorder();
+            showSlide(0);
+        }
+
+        function initMediaRecorder() {
+            if (navigator.mediaDevices && navigator.mediaDevices.getUserMedia) {
+                navigator.mediaDevices.getUserMedia({ audio: true })
+                    .then(stream => {
+                        mediaRecorder = new MediaRecorder(stream);
+                        mediaRecorder.ondataavailable = (e) => {
+                            if (e.data.size > 0) audioChunks.push(e.data);
+                        };
+                        mediaRecorder.onstop = () => {
+                            const audioBlob = new Blob(audioChunks, { type: 'audio/webm' });
+                            audioChunks = [];
+                            
+                            if (userAudioUrl) URL.revokeObjectURL(userAudioUrl);
+                            userAudioUrl = URL.createObjectURL(audioBlob);
+                            
+                            document.getElementById('user-audio').src = userAudioUrl;
+                            document.getElementById('user-audio-container').classList.remove('hidden');
+                            
+                            const audioArea = document.getElementById('audio-area');
+                            audioArea.classList.remove('hidden');
+                            audioArea.classList.add('fade-in');
+                            
+                            isRecorded = true;
+                            animationState = 1;
+                            updateButtonState();
+                        };
+                    })
+                    .catch(err => {
+                        alert("マイクへのアクセスを許可してください。ブラウザのアドレスバー左側の鍵マークなどからマイク設定を確認できます。");
+                    });
+            }
+        }
+
+        function startRecording(e) {
+            if (e) e.stopPropagation();
+            if (!mediaRecorder) {
+                alert("マイクが利用できません。");
+                return;
+            }
+            if (currentAudio) { currentAudio.pause(); currentAudio = null; }
+            audioChunks = [];
+            mediaRecorder.start();
+            document.getElementById('record-btn').classList.add('hidden');
+            document.getElementById('stop-btn').classList.remove('hidden');
+        }
+
+        function stopRecording(e) {
+            if (e) e.stopPropagation();
+            if (mediaRecorder && mediaRecorder.state !== "inactive") {
+                mediaRecorder.stop();
+                document.getElementById('stop-btn').classList.add('hidden');
+                document.getElementById('record-btn').classList.remove('hidden');
+            }
+        }
+
+        document.addEventListener('keydown', (e) => {
+            if (e.key === 'ArrowRight' || e.key === ' ') {
+                if (animationState === 0 && !isRecorded) return; 
+                if (animationState === 1 && !isAudioPlayed) return; 
+                if (animationState < 2) advanceAnimation();
+                else nextSlide();
+            } else if (e.key === 'ArrowLeft') {
+                prevSlide();
+            }
+        });
+
+        function sanitizeRubyText(text) {
+            if (!text) return "";
+            let t = text.replace(/｛/g, '{').replace(/｝/g, '}').replace(/｜/g, '|');
+            t = t.replace(/([\u4E00-\u9FFF]+)\s*\{([ぁ-ん]+)\}/g, '{$1|$2}');
+            t = t.replace(/([\u4E00-\u9FFF]+)\s*\(([ぁ-ん]+)\)/g, '{$1|$2}');
+            t = t.replace(/([\u4E00-\u9FFF]+)\s*\（([ぁ-ん]+)\）/g, '{$1|$2}');
+            return t;
+        }
+
+        function parseRuby(text) {
+            let t = sanitizeRubyText(text);
+            return t.replace(/\{\s*([^{|]+?)\s*\|\s*([^}]+?)\s*\}/g, '<ruby>$1<rt>$2</rt></ruby>');
+        }
+        
+        function parseForSpeech(text) {
+            let t = sanitizeRubyText(text);
+            return t.replace(/\{\s*([^{|]+?)\s*\|\s*([^}]+?)\s*\}/g, '$2');
+        }
+
+        function showSlide(index) {
+            if (currentAudio) { currentAudio.pause(); currentAudio = null; }
+            
+            if (userAudioUrl) {
+                URL.revokeObjectURL(userAudioUrl);
+                userAudioUrl = null;
+            }
+            document.getElementById('user-audio').src = "";
+            isRecorded = false;
+
+            currentIndex = index;
+            animationState = 0; 
+            isAudioPlayed = false; 
+
+            const slide = slides[currentIndex];
+            document.getElementById('slide-number').innerText = `${currentIndex + 1} / ${slides.length}`;
+            
+            const qArea = document.getElementById('question-area');
+            const audioArea = document.getElementById('audio-area');
+            const ansArea = document.getElementById('answer-area');
+            
+            qArea.innerHTML = '';
+            audioArea.classList.add('hidden');
+            ansArea.classList.add('hidden');
+            ansArea.innerHTML = '';
+
+            document.getElementById('record-btn').classList.remove('hidden');
+            document.getElementById('stop-btn').classList.add('hidden');
+            document.getElementById('user-audio-container').classList.add('hidden');
+
+            if (slide.qNum) {
+                const numDiv = document.createElement('div');
+                numDiv.className = "self-start text-xl sm:text-2xl font-bold tracking-wide text-blue-300 bg-blue-900/40 px-6 py-2 rounded-xl mb-4 border border-blue-700/50 shadow-sm";
+                numDiv.innerText = slide.qNum;
+                qArea.appendChild(numDiv);
+            }
+
+            if (slide.qText) {
+                const textDiv = document.createElement('div');
+                textDiv.className = "text-xl sm:text-2xl font-bold text-gray-300 whitespace-pre-wrap text-center mb-4 answer-text-area";
+                textDiv.innerHTML = parseRuby(slide.qText);
+                qArea.appendChild(textDiv);
+            }
+
+            if (slide.qImage) {
+                const img = document.createElement('img');
+                img.src = slide.qImage;
+                img.className = "max-w-full h-auto max-h-[35vh] rounded-xl shadow-xl border border-gray-700 bg-gray-800 p-1";
+                qArea.appendChild(img);
+            }
+
+            const audioBtn = document.getElementById('audio-btn');
+            audioBtn.innerHTML = "🔊";
+            audioBtn.className = "flex-shrink-0 w-16 h-16 flex items-center justify-center bg-blue-600 hover:bg-blue-500 text-white rounded-full transition-all transform hover:scale-105 active:scale-95 shadow-md text-2xl";
+            audioBtn.onclick = (e) => {
+                e.stopPropagation();
+                playAudio(slide.aText, audioBtn);
+            };
+
+            ansArea.innerHTML = parseRuby(slide.aText);
+
+            document.getElementById('prev-btn').disabled = (currentIndex === 0);
+            document.getElementById('next-btn').disabled = (currentIndex === slides.length - 1);
+            
+            updateButtonState();
+        }
+
+        function updateButtonState() {
+            const animBtn = document.getElementById('next-animation-btn');
+            
+            if (animationState === 0) {
+                animBtn.disabled = true;
+                animBtn.className = "bg-gray-700 opacity-50 cursor-not-allowed text-white px-4 sm:px-6 py-2.5 rounded-xl font-bold transition-colors shadow text-xs sm:text-sm flex-1 max-w-xs";
+                animBtn.innerText = "🔒 録音すると次へ進めます";
+            } else if (animationState === 1) {
+                if (!isAudioPlayed) {
+                    animBtn.disabled = true;
+                    animBtn.className = "bg-gray-700 opacity-50 cursor-not-allowed text-white px-4 sm:px-6 py-2.5 rounded-xl font-bold transition-colors shadow text-xs sm:text-sm flex-1 max-w-xs";
+                    animBtn.innerText = "🔒 音声を聞くと正解を表示できます";
+                } else {
+                    animBtn.disabled = false;
+                    animBtn.className = "bg-green-600 hover:bg-green-500 text-white px-4 sm:px-6 py-2.5 rounded-xl font-bold transition-colors shadow text-sm sm:text-base flex-1 max-w-xs lighten fade-in";
+                    animBtn.innerText = "正解の文字を表示";
+                }
+            } else {
+                animBtn.disabled = true;
+                animBtn.className = "bg-gray-700 opacity-30 cursor-not-allowed text-white px-4 sm:px-6 py-2.5 rounded-xl font-bold transition-colors shadow text-sm sm:text-base flex-1 max-w-xs";
+                animBtn.innerText = "完了";
+            }
+        }
+
+        function advanceAnimation(e) {
+            if (e) e.stopPropagation(); 
+            
+            const audioArea = document.getElementById('audio-area');
+            const ansArea = document.getElementById('answer-area');
+
+            if (animationState === 0) {
+                if (!isRecorded) return;
+            } else if (animationState === 1) {
+                if (!isAudioPlayed) return;
+                audioArea.classList.add('hidden');
+                ansArea.classList.remove('hidden');
+                ansArea.classList.add('fade-in');
+                animationState = 2;
+                updateButtonState();
+            }
+        }
+
+        function playAudio(rubyText, btnElement) {
+            if (isAudioLoading) return;
+            if (currentAudio) { currentAudio.pause(); currentAudio = null; }
+
+            const speechText = parseForSpeech(rubyText);
+            isAudioLoading = true;
+            
+            btnElement.innerHTML = '<div class="animate-spin h-5 w-5 border-b-2 border-white rounded-full"></div>';
+            btnElement.disabled = true;
+
+            fetch(`${GAS_WEB_APP_URL}?action=getTts&text=${encodeURIComponent(speechText)}&voiceType=${selectedVoiceType}`)
+                .then(res => res.json())
+                .then(resData => {
+                    isAudioLoading = false;
+                    btnElement.disabled = false;
+                    
+                    if (resData.success) {
+                        btnElement.innerHTML = "🔊";
+                        btnElement.classList.remove('bg-blue-600', 'hover:bg-blue-500');
+                        btnElement.classList.add('bg-yellow-600', 'hover:bg-yellow-500');
+
+                        isAudioPlayed = true;
+                        updateButtonState();
+
+                        currentAudio = new Audio('data:audio/mp3;base64,' + resData.audioBase64);
+                        currentAudio.onended = () => {
+                            btnElement.classList.remove('bg-yellow-600', 'hover:bg-yellow-500');
+                            btnElement.classList.add('bg-blue-600', 'hover:bg-blue-500');
+                        };
+                        currentAudio.play();
+                    } else {
+                        throw new Error(resData.error);
+                    }
+                })
+                .catch(error => {
+                    isAudioLoading = false;
+                    btnElement.disabled = false;
+                    btnElement.innerHTML = "❌";
+                    alert("音声の取得に失敗しました: " + error.message);
+                });
+        }
+
+        function changeVoice() {
+            selectedVoiceType = document.querySelector('input[name="voice-type"]:checked').value;
+            if (currentAudio) { currentAudio.pause(); currentAudio = null; }
+        }
+
+        function nextSlide() { if (currentIndex < slides.length - 1) showSlide(currentIndex + 1); }
+        function prevSlide() { if (currentIndex > 0) showSlide(currentIndex - 1); }
+    </script>
+</body>
+</html>
