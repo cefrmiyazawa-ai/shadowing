@@ -14,7 +14,7 @@
         @keyframes fadeIn { from { opacity: 0; transform: translateY(8px); } to { opacity: 1; transform: translateY(0); } }
     </style>
 </head>
-<body class="bg-gray-900 text-gray-100 h-screen flex flex-col justify-between p-3 sm:p-4 select-none overflow-hidden relative">
+<body class="bg-gray-900 text-gray-100 min-h-screen flex flex-col justify-between p-3 pb-8 sm:p-4 select-none relative overflow-x-hidden overflow-y-auto">
 
     <div class="absolute top-2 right-2 sm:top-4 sm:right-4 flex gap-3 text-[11px] sm:text-xs text-gray-400 bg-gray-800/80 px-3 py-1.5 rounded-lg border border-gray-700 z-50 shadow-md">
         <label class="flex items-center cursor-pointer hover:text-gray-200">
@@ -27,7 +27,7 @@
         </label>
     </div>
 
-    <div class="max-w-4xl w-full mx-auto flex-1 flex flex-col justify-center my-1 sm:my-2">
+    <div class="max-w-4xl w-full mx-auto flex-1 flex flex-col justify-center my-4 sm:my-2">
         <div id="loading" class="text-center py-20 bg-gray-800 rounded-2xl border border-gray-700 shadow-lg">
             <div class="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-500 mx-auto mb-4"></div>
             <p class="text-gray-400 font-medium">GAS経由でスプレッドシートから問題を読み込んでいます...</p>
@@ -46,26 +46,26 @@
                         <button id="stop-btn" onclick="stopRecording(event)" class="px-5 py-2.5 bg-gray-600 hover:bg-gray-500 text-white font-bold rounded-xl transition-all transform active:scale-95 text-sm sm:text-base shadow-md hidden flex items-center gap-2">⏹ 録音ストップ</button>
                     </div>
                     
-                    <div id="user-audio-container" class="w-full max-w-xs hidden bg-gray-700/50 p-2 rounded-xl border border-gray-600 text-center fade-in">
+                    <div id="user-audio-container" class="w-full max-w-xs hidden bg-gray-700/50 p-2 rounded-xl border border-gray-600 text-center fade-in mt-2">
                         <span class="text-[10px] sm:text-xs text-red-400 font-bold block mb-1">あなたの音声（一時保存）</span>
                         <audio id="user-audio" controls class="w-full h-8 mx-auto" onclick="event.stopPropagation()"></audio>
                     </div>
                 </div>
 
-                <div id="audio-area" class="w-full flex justify-center hidden my-1">
+                <div id="audio-area" class="w-full flex justify-center hidden my-3">
                     <button id="audio-btn" class="flex-shrink-0 w-12 h-12 flex items-center justify-center bg-blue-600 hover:bg-blue-500 text-white rounded-full transition-all transform hover:scale-105 active:scale-95 shadow-md text-xl">🔊</button>
                 </div>
 
-                <div id="answer-area" class="w-full hidden mt-2 text-lg sm:text-2xl font-bold text-green-400 whitespace-pre-wrap text-center answer-text-area"></div>
+                <div id="answer-area" class="w-full hidden mt-4 text-lg sm:text-2xl font-bold text-green-400 whitespace-pre-wrap text-center answer-text-area"></div>
             </div>
         </div>
     </div>
 
-    <div id="controls" class="hidden max-w-4xl w-full mx-auto flex flex-col gap-2 border-t border-gray-700 pt-2 pb-1">
+    <div id="controls" class="hidden max-w-4xl w-full mx-auto flex flex-col gap-2 border-t border-gray-700 pt-4 mt-2 mb-2">
         <div class="flex justify-between items-center w-full gap-2">
-            <button id="prev-btn" onclick="prevSlide()" class="bg-gray-800 hover:bg-gray-700 text-gray-300 px-3 sm:px-6 py-2.5 rounded-xl font-bold transition-colors disabled:opacity-30 disabled:cursor-not-allowed text-xs sm:text-base whitespace-nowrap">◀ 前の問題</button>
-            <button id="next-animation-btn" onclick="advanceAnimation(event)" class="bg-green-600 hover:bg-green-500 text-white px-2 sm:px-6 py-2.5 rounded-xl font-bold transition-colors shadow text-xs sm:text-base flex-1 max-w-xs">🔒 録音すると次へ進めます</button>
-            <button id="next-btn" onclick="nextSlide()" class="bg-blue-600 hover:bg-blue-500 text-white px-3 sm:px-6 py-2.5 rounded-xl font-bold transition-colors disabled:opacity-30 disabled:cursor-not-allowed text-xs sm:text-base whitespace-nowrap">次の問題 ▶</button>
+            <button id="prev-btn" onclick="prevSlide()" class="bg-gray-800 hover:bg-gray-700 text-gray-300 px-3 sm:px-6 py-3 rounded-xl font-bold transition-colors disabled:opacity-30 disabled:cursor-not-allowed text-xs sm:text-base whitespace-nowrap shadow-md">◀ 前の問題</button>
+            <button id="next-animation-btn" onclick="advanceAnimation(event)" class="bg-green-600 hover:bg-green-500 text-white px-2 sm:px-6 py-3 rounded-xl font-bold transition-colors shadow-md text-xs sm:text-base flex-1 max-w-xs">🔒 録音すると次へ</button>
+            <button id="next-btn" onclick="nextSlide()" class="bg-blue-600 hover:bg-blue-500 text-white px-3 sm:px-6 py-3 rounded-xl font-bold transition-colors disabled:opacity-30 disabled:cursor-not-allowed text-xs sm:text-base whitespace-nowrap shadow-md">次の問題 ▶</button>
         </div>
     </div>
 
@@ -282,21 +282,21 @@
             
             if (animationState === 0) {
                 animBtn.disabled = true;
-                animBtn.className = "bg-gray-700 opacity-50 cursor-not-allowed text-white px-4 sm:px-6 py-2.5 rounded-xl font-bold transition-colors shadow text-xs sm:text-sm flex-1 max-w-xs";
-                animBtn.innerText = "🔒 録音すると次へ進めます";
+                animBtn.className = "bg-gray-700 opacity-50 cursor-not-allowed text-white px-4 sm:px-6 py-3 rounded-xl font-bold transition-colors shadow-md text-xs sm:text-sm flex-1 max-w-xs";
+                animBtn.innerText = "🔒 録音すると次へ";
             } else if (animationState === 1) {
                 if (!isAudioPlayed) {
                     animBtn.disabled = true;
-                    animBtn.className = "bg-gray-700 opacity-50 cursor-not-allowed text-white px-4 sm:px-6 py-2.5 rounded-xl font-bold transition-colors shadow text-xs sm:text-sm flex-1 max-w-xs";
-                    animBtn.innerText = "🔒 音声を聞くと正解を表示できます";
+                    animBtn.className = "bg-gray-700 opacity-50 cursor-not-allowed text-white px-4 sm:px-6 py-3 rounded-xl font-bold transition-colors shadow-md text-xs sm:text-sm flex-1 max-w-xs";
+                    animBtn.innerText = "🔒 音声を聞くと次へ";
                 } else {
                     animBtn.disabled = false;
-                    animBtn.className = "bg-green-600 hover:bg-green-500 text-white px-4 sm:px-6 py-2.5 rounded-xl font-bold transition-colors shadow text-sm sm:text-base flex-1 max-w-xs lighten fade-in";
-                    animBtn.innerText = "正解の文字を表示";
+                    animBtn.className = "bg-green-600 hover:bg-green-500 text-white px-4 sm:px-6 py-3 rounded-xl font-bold transition-colors shadow-md text-sm sm:text-base flex-1 max-w-xs lighten fade-in";
+                    animBtn.innerText = "正解を表示";
                 }
             } else {
                 animBtn.disabled = true;
-                animBtn.className = "bg-gray-700 opacity-30 cursor-not-allowed text-white px-4 sm:px-6 py-2.5 rounded-xl font-bold transition-colors shadow text-sm sm:text-base flex-1 max-w-xs";
+                animBtn.className = "bg-gray-700 opacity-30 cursor-not-allowed text-white px-4 sm:px-6 py-3 rounded-xl font-bold transition-colors shadow-md text-sm sm:text-base flex-1 max-w-xs";
                 animBtn.innerText = "完了";
             }
         }
