@@ -50,20 +50,8 @@
         </div>
     </div>
 
+    <!-- ★男女切り替えボタンを完全に削除しました -->
     <div id="controls" class="hidden max-w-4xl w-full mx-auto flex flex-col gap-3 border-t border-gray-700 pt-3 pb-1">
-        <div class="flex justify-center">
-            <div class="flex items-center gap-4 bg-gray-800 px-4 py-1.5 rounded-lg border border-gray-700 shadow-inner">
-                <label class="flex items-center cursor-pointer">
-                    <input type="radio" name="voice-type" value="female" class="w-4 h-4 text-blue-500" checked onchange="changeVoice()">
-                    <span class="ml-1.5 text-sm text-gray-300">女性の声</span>
-                </label>
-                <label class="flex items-center cursor-pointer">
-                    <input type="radio" name="voice-type" value="male" class="w-4 h-4 text-blue-500" onchange="changeVoice()">
-                    <span class="ml-1.5 text-sm text-gray-300">男性の声</span>
-                </label>
-            </div>
-        </div>
-
         <div class="flex justify-between items-center w-full gap-2">
             <button id="prev-btn" onclick="prevSlide()" class="bg-gray-800 hover:bg-gray-700 text-gray-300 px-4 sm:px-6 py-2.5 rounded-xl font-bold transition-colors disabled:opacity-30 disabled:cursor-not-allowed text-sm sm:text-base whitespace-nowrap">◀ 前の問題</button>
             <button id="next-animation-btn" onclick="advanceAnimation(event)" class="bg-green-600 hover:bg-green-500 text-white px-4 sm:px-6 py-2.5 rounded-xl font-bold transition-colors shadow text-sm sm:text-base flex-1 max-w-xs">🔒 録音すると次へ進めます</button>
@@ -82,8 +70,6 @@
         let animationState = 0; 
         
         let currentAudio = null;
-        let selectedVoiceType = 'female';
-        let isAudioLoading = false;
         let isAudioPlayed = false; 
 
         let mediaRecorder = null;
@@ -218,11 +204,6 @@
             return t.replace(/\{\s*([^{|]+?)\s*\|\s*([^}]+?)\s*\}/g, '<ruby>$1<rt>$2</rt></ruby>');
         }
         
-        function parseForSpeech(text) {
-            let t = sanitizeRubyText(text);
-            return t.replace(/\{\s*([^{|]+?)\s*\|\s*([^}]+?)\s*\}/g, '$2');
-        }
-
         function showSlide(index) {
             if (currentAudio) { currentAudio.pause(); currentAudio = null; }
             
@@ -334,39 +315,44 @@
         }
 
         // ========================================================
-        // 🚨完全に修正した「待ち時間ゼロの音声再生」機能
+        // ★修正版：より強力なURL変換とエラー検知機能を追加
         // ========================================================
         function playAudio() {
             const slide = slides[currentIndex];
             if (!slide || !slide.audioUrl) {
-                alert("音声ファイルがまだ作成されていません。スプレッドシートのメニューから音声を生成してください。");
+                alert("音声URLが見つかりません。スプレッドシートのF列にURLが入っているか確認してください。");
                 return;
             }
             
             let url = slide.audioUrl;
-            if (url.includes('drive.google.com')) {
-                 const match = url.match(/\/d\/([a-zA-Z0-9_-]+)/);
-                 if (match && match[1]) {
-                     url = 'https://docs.google.com/uc?export=download&id=' + match[1];
-                 }
+            let fileId = "";
+            
+            // ドライブのURLからIDだけを確実に抜き出す
+            if (url.includes('/d/')) {
+                fileId = url.split('/d/')[1].split('/')[0];
+            } else if (url.includes('id=')) {
+                fileId = url.split('id=')[1].split('&')[0];
             }
             
-            // 💡追加修正1：再生前に古い音声を止める＆currentAudioに代入する
+            if (fileId) {
+                // 直接再生用のURLに変換
+                url = 'https://drive.google.com/uc?export=download&id=' + fileId;
+            }
+            
             if (currentAudio) {
                 currentAudio.pause();
                 currentAudio.currentTime = 0;
             }
-            currentAudio = new Audio(url);
-            currentAudio.play();
             
-            // 💡追加修正2：音声を聞いたという記録をつけ、正解ボタンを表示状態にする
-            isAudioPlayed = true;
-            updateButtonState();
-        }
-        
-        function changeVoice() {
-            selectedVoiceType = document.querySelector('input[name="voice-type"]:checked').value;
-            if (currentAudio) { currentAudio.pause(); currentAudio = null; }
+            currentAudio = new Audio(url);
+            
+            // 再生エラーが起きた場合に、アラートで原因を表示する安全装置
+            currentAudio.play().then(() => {
+                isAudioPlayed = true;
+                updateButtonState();
+            }).catch(err => {
+                alert("音声を再生できませんでした。\nブラウザの設定でブロックされているか、ファイルの共有設定が原因の可能性があります。\n\n詳細エラー: " + err.message);
+            });
         }
 
         function nextSlide() { if (currentIndex < slides.length - 1) showSlide(currentIndex + 1); }
