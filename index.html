@@ -123,12 +123,10 @@
             document.getElementById('slide-container').classList.remove('hidden');
             document.getElementById('controls').classList.remove('hidden');
             
-            // ★先生が一番使いやすかった「画面を開いた瞬間にマイクの許可（3つの選択肢）を出す」処理に戻しました！
             initMediaRecorder();
             showSlide(0);
         }
 
-        // マイクの初期化処理（元に戻しました）
         function initMediaRecorder() {
             if (navigator.mediaDevices && navigator.mediaDevices.getUserMedia) {
                 navigator.mediaDevices.getUserMedia({ audio: true })
@@ -165,14 +163,13 @@
         function startRecording(e) {
             if (e) e.stopPropagation();
             
-            // ★万が一、ブラウザがまだブロック状態を記憶していてマイクが使えない場合の「ループ脱出ボタン」を追加
             if (!mediaRecorder) {
                 const currentUrl = window.location.href;
                 document.getElementById('question-area').innerHTML = `
                     <div class="bg-gray-800 p-6 rounded-xl border border-red-500 text-center w-full my-4">
                         <p class="text-red-400 font-bold mb-3 text-lg">マイクの許可が必要です</p>
-                        <p class="text-gray-300 text-sm mb-5 leading-relaxed">ブラウザの設定でマイクがブロックされたまま記憶されています。<br>下の青いボタンからアプリを別画面で開き直すと、以前のように「許可」の画面（3つの選択肢）が正しく表示されます。</p>
-                        <a href="${currentUrl}" target="_blank" class="bg-blue-600 px-6 py-3 rounded-xl font-bold text-white shadow shadow-lg inline-block hover:bg-blue-500 transition transform hover:scale-105">ここをクリックしてアプリを開き直す</a>
+                        <p class="text-gray-300 text-sm mb-5 leading-relaxed">URLバー左側の「🔒鍵マーク」からマイクを許可し、ページを再読み込みしてください。</p>
+                        <a href="${currentUrl}" class="bg-blue-600 px-6 py-3 rounded-xl font-bold text-white shadow shadow-lg inline-block hover:bg-blue-500 transition transform hover:scale-105">ページを再読み込みする</a>
                     </div>
                 `;
                 document.getElementById('record-area').classList.add('hidden');
@@ -283,7 +280,7 @@
             audioBtn.className = "flex-shrink-0 w-16 h-16 flex items-center justify-center bg-blue-600 hover:bg-blue-500 text-white rounded-full transition-all transform hover:scale-105 active:scale-95 shadow-md text-2xl";
             audioBtn.onclick = (e) => {
                 e.stopPropagation();
-                playAudio(slide.aText, audioBtn);
+                playAudio();
             };
 
             ansArea.innerHTML = parseRuby(slide.aText);
@@ -336,14 +333,16 @@
             }
         }
 
+        // ========================================================
+        // 🚨完全に修正した「待ち時間ゼロの音声再生」機能
+        // ========================================================
         function playAudio() {
             const slide = slides[currentIndex];
             if (!slide || !slide.audioUrl) {
-                alert("音声ファイルがまだ作成されていません。");
+                alert("音声ファイルがまだ作成されていません。スプレッドシートのメニューから音声を生成してください。");
                 return;
             }
             
-            // ドライブのURLを、直接再生できる形式に自動変換します
             let url = slide.audioUrl;
             if (url.includes('drive.google.com')) {
                  const match = url.match(/\/d\/([a-zA-Z0-9_-]+)/);
@@ -352,8 +351,17 @@
                  }
             }
             
-            const audio = new Audio(url);
-            audio.play();
+            // 💡追加修正1：再生前に古い音声を止める＆currentAudioに代入する
+            if (currentAudio) {
+                currentAudio.pause();
+                currentAudio.currentTime = 0;
+            }
+            currentAudio = new Audio(url);
+            currentAudio.play();
+            
+            // 💡追加修正2：音声を聞いたという記録をつけ、正解ボタンを表示状態にする
+            isAudioPlayed = true;
+            updateButtonState();
         }
         
         function changeVoice() {
