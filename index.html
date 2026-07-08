@@ -324,19 +324,15 @@
                 return;
             }
             
+            // GAS側でBase64（直接再生可能なデータ）に変換されているので、そのまま使います
             let url = slide.audioUrl;
-            let fileId = "";
             
-            // ドライブのURLからIDだけを確実に抜き出す
-            if (url.includes('/d/')) {
-                fileId = url.split('/d/')[1].split('/')[0];
-            } else if (url.includes('id=')) {
-                fileId = url.split('id=')[1].split('&')[0];
-            }
-            
-            if (fileId) {
-                // 直接再生用のURLに変換
-                url = 'https://drive.google.com/uc?export=download&id=' + fileId;
+            // 万が一古いドライブURLのまま届いた場合の予備処理
+            if (url.includes('drive.google.com')) {
+                let fileId = "";
+                if (url.includes('/d/')) fileId = url.split('/d/')[1].split('/')[0];
+                else if (url.includes('id=')) fileId = url.split('id=')[1].split('&')[0];
+                if (fileId) url = 'https://drive.google.com/uc?export=download&id=' + fileId;
             }
             
             if (currentAudio) {
